@@ -45,7 +45,7 @@ public class Launcher  {
  * ✅No action is required.
  * The warning is harmless and does not affect your program.
  *
- * 📦Why the warning doesn’t matter?
+ * 📦Why the warning doesn’t matter? ccc
  * This warning only appears during development inside IntelliJ.
  * It does not appear in the final packaged application.
  * When packaging the application (e.g., using jlink or jpackage), the JVM options are applied before JavaFX loads, so the warning disappears.
