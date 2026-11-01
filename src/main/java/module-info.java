@@ -4,9 +4,10 @@ module ci553.happyshop {
     requires javafx.graphics;
 
     // Uncomment the following line when running tests in IntelliJ:
-    // requires org.junit.jupiter.api;
+    requires org.junit.jupiter.api;
 
     opens ci553.happyshop;
+    opens ci553.happyshop.catalogue;
     opens ci553.happyshop.client;
     opens ci553.happyshop.client.customer;
     opens ci553.happyshop.client.picker;
@@ -15,6 +16,7 @@ module ci553.happyshop {
     opens ci553.happyshop.client.emergency;
 
     exports ci553.happyshop;
+    exports ci553.happyshop.catalogue;
     exports ci553.happyshop.client;
     exports ci553.happyshop.utility;
     exports ci553.happyshop.client.customer;
