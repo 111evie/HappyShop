@@ -19,6 +19,7 @@ import java.util.Map;
 // indicating possible extension ideas to explore.
 public class CustomerModel {
     public CustomerView cusView; //part of MVC
+    public RemoveProductNotifier removeProductNotifier; // Helper window for stock shortages
     private DatabaseRW databaseRW; //Interface type, not specific implementation
                                   //Benefits: Flexibility: Easily change the database implementation.
 
@@ -102,6 +103,10 @@ public class CustomerModel {
             ArrayList<Product> insufficientProducts= databaseRW.purchaseStocks(groupedProducts);
 
             if(insufficientProducts.isEmpty()){ // If stock is sufficient for all products
+                // closes notif windows when stock no longer empty
+                if (removeProductNotifier != null) {
+                    removeProductNotifier.closeNotifierWindow();
+                }
                 //get OrderHub and tell it to make a new Order
                 OrderHub orderHub =OrderHub.getOrderHub();
                 Order theOrder = orderHub.newOrder(trolley.getProducts());
@@ -133,8 +138,17 @@ public class CustomerModel {
                 // 2. Trigger a message window to notify the customer about the insufficient stock, rather than directly changing displayLaSearchResult.
                 //You can use the provided RemoveProductNotifier class and its showRemovalMsg method for this purpose.
                 //remember close the message window where appropriate (using method closeNotifierWindow() of RemoveProductNotifier class)
-                searchResultProductText = "Checkout failed due to insufficient stock for the following products:\n" + errorMsg.toString();
-                System.out.println("stock is not enough");
+
+                // removes product that has run out of stock
+                trolley.removeProducts(insufficientProducts);
+                // refreshes item list without removed items
+                trolleyContentsText = ProductListFormatter.buildString(trolley.getProducts());
+                // starts removeProductNotifier
+                if (removeProductNotifier != null) {
+                    removeProductNotifier.showRemovalMsg(errorMsg.toString());
+                }
+                searchResultProductText = "Some items were removed due to insufficient stock.";
+                System.out.println("stock is not enough... items removed and notification shown");
             }
         }
         else{
@@ -165,6 +179,10 @@ public class CustomerModel {
     }
 
     void cancel(){
+        //closes product out of stock notification
+        if (removeProductNotifier != null) {
+            removeProductNotifier.closeNotifierWindow();
+        }
         trolley.clear();
         trolleyContentsText ="";
         updateView();
