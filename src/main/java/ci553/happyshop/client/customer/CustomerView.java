@@ -120,6 +120,9 @@ public class CustomerView  {
         vbSearchPage.setAlignment(Pos.TOP_CENTER);
         vbSearchPage.setStyle("-fx-padding: 15px;");
 
+        // allows pressing enter to inititate search instead of always having to press button
+        tfKeyword.setOnAction(e -> cusController.doAction("Search"));
+
         return vbSearchPage;
     }
 

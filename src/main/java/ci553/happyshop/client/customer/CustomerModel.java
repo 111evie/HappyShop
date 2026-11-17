@@ -50,32 +50,57 @@ public class CustomerModel {
         this.databaseRW = databaseRW;
     }
 
-    //SELECT productID, description, image, unitPrice,inStock quantity
-    void search(){
-        String productId = cusView.tfId.getText().trim();
-        if(!productId.isEmpty()){
-            searchResult = databaseRW.searchProductById(productId); //search database
-            if(searchResult != null && searchResult.getStockQuantity()>0){
-                double unitPrice = searchResult.getUnitPrice();
-                String description = searchResult.getProductDescription();
-                int stock = searchResult.getStockQuantity();
-
-                String baseInfo = String.format("Product_Id: %s\n%s,\nPrice: £%.2f", productId, description, unitPrice);
-                String quantityInfo = stock < 100 ? String.format("\n%d units left.", stock) : "";
-                searchResultProductText = baseInfo + quantityInfo;
-                System.out.println(searchResultProductText);
+    /**
+     * UPDATED search function to support new ID and keyword searching!!
+     */
+    void search() {
+        // reads what user types
+        String idText = (cusView.tfId != null) ? cusView.tfId.getText() : "";
+        String keywordText = (cusView.tfKeyword != null) ? cusView.tfKeyword.getText() : "";
+        // calls search validator to look for a logical match (if there is one)
+        searchValidator.validate(idText, keywordText);
+        ProductSearchResult outcome;
+        // using cases to tell program what to do for each outcome
+        switch (searchValidator.getMode()) {
+            case BY_ID -> {
+                Product p = databaseRW.searchProductById(searchValidator.getQuery());
+                outcome = evaluateProduct(p, searchValidator.getQuery());
             }
-            else{
-                searchResult =null;
-                searchResultProductText = "No Product was found with ID " + productId;
-                System.out.println("No Product was found with ID " + productId);
+            case BY_KEYWORD -> {
+                // If multiple products match, pick the first available or display first match
+                ArrayList<Product> matches = databaseRW.searchProductByKeyword(searchValidator.getQuery());
+                if (matches != null && !matches.isEmpty()) {
+                    outcome = evaluateProduct(matches.get(0), searchValidator.getQuery());}  else {
+                    outcome = new ProductSearchResult(null, SearchStatus.NOT_FOUND,
+                            "no product found matching description: " + searchValidator.getQuery());
+                }
             }
-        }else{
-            searchResult =null;
-            searchResultProductText = "Please type ProductID";
-            System.out.println("Please type ProductID.");
+            case EMPTY -> {
+                outcome = new ProductSearchResult(null, SearchStatus.EMPTY_INPUT,
+                        SearchStatus.EMPTY_INPUT.getDefaultMessage()); }
+            default -> throw new IllegalStateException("unexpected error: " + searchValidator.getMode());
         }
+        // shows user result that it found
+        this.searchResult = outcome.product();
+        this.searchResultProductText = outcome.displayMessage();
         updateView();
+    }
+    private ProductSearchResult evaluateProduct(Product p, String input) {
+        if (p == null) {
+            return new ProductSearchResult(null, SearchStatus.NOT_FOUND,
+                    "no product found for input: " + input);   }
+        // below i used placeholder values within the string in place of calling the values inside just to make writing
+        // it all out a little easier (swapping in and out of speech marks would have gotten really messy)
+        if (p.getStockQuantity() <= 0) {
+            String msg = String.format("Product_Id: %s\n%s\nPrice: £%.2f (sorry, we are out of stock :c )",
+                    p.getProductId(), p.getProductDescription(), p.getUnitPrice());
+            return new ProductSearchResult(p, SearchStatus.OUT_OF_STOCK, msg);}
+        String baseInfo = String.format("Product_Id: %s\n%s,\nprice: £%.2f",
+                p.getProductId(), p.getProductDescription(), p.getUnitPrice());
+        String quantityInfo = p.getStockQuantity() < 100
+                ? String.format("\n%d left in stock.", p.getStockQuantity())
+                : "";
+        return new ProductSearchResult(p, SearchStatus.SUCCESS, baseInfo + quantityInfo);
     }
 
     void addToTrolley(){
@@ -177,6 +202,41 @@ public class CustomerModel {
         }
         return new ArrayList<>(grouped.values());
     }
+
+    /**
+     * enum use from week 3 lecture material
+     */
+    public enum SearchMode {
+        BY_ID,
+        BY_KEYWORD,
+        EMPTY
+    }
+    /**
+     * inner class used to keep input validation in a bubble
+     * similar to warehousemodel inner class
+     */
+    public class SearchInputValidator {
+        private String rawInput = "";
+        private SearchMode mode = SearchMode.EMPTY;
+        public void validate(String idInput, String keywordInput) {
+            String trimmedId = (idInput != null) ? idInput.trim() : "";
+            String trimmedKeyword = (keywordInput != null) ? keywordInput.trim() : "";
+            if (!trimmedId.isEmpty()) {
+                rawInput = trimmedId;
+                // if input is integer it looks for ID, if anything else it tries to look for keyword
+                mode = trimmedId.matches("\\d+") ? SearchMode.BY_ID : SearchMode.BY_KEYWORD;
+            } else if (!trimmedKeyword.isEmpty()) {
+                rawInput = trimmedKeyword;
+                mode = SearchMode.BY_KEYWORD;
+            } else {
+                rawInput = "";
+                mode = SearchMode.EMPTY;
+            }
+        }
+        public String getQuery() { return rawInput; }
+        public SearchMode getMode() { return mode; }
+    }
+    private final SearchInputValidator searchValidator = new SearchInputValidator();
 
     void cancel(){
         //closes product out of stock notification
